@@ -1,43 +1,54 @@
+import soundfile as sf
 import sounddevice as sd
 import numpy as np
 import atexit
+from datetime import datetime
 
+# Cleanup function
 def cleanup():
     print("Performing cleanup tasks...")
 
 atexit.register(cleanup)
 
 def analyze(reading):
-    print(np.average(reading[0]), np.average(reading[1]))
-    return False
+    avg_amplitude = np.average(reading[0]) * 100_000
+    threshold = 0.5
+
+    print(avg_amplitude, threshold, abs(avg_amplitude) > threshold)
+    return abs(avg_amplitude) > threshold
 
 def main():
-    fs=48000 # readings / sec
+    fs = 48000  # Readings per second
 
+    # Open audio stream
     stream = sd.InputStream(device='MacBook Air Microphone, Core Audio', channels=1, samplerate=fs)
     stream.start()
 
     batch = []
-
     save_current_batch = save_next_batch = False
 
-    while True:
-        reading = stream.read(fs) # every read is 1 sec (48000 dps)
+    try:
+        while True:
+            reading = stream.read(fs)  # Read 1 second (48000 data points)
+            batch.append(reading[0])
 
-        batch.append(reading)
+            if analyze(reading):  # If current reading is flagged, save this and next 5 sec
+                save_current_batch = True
+                # save_next_batch = True
 
-        if analyze(reading): # if current reading is flagged, save this and next 5 sec
-            save_current_batch = True
-            save_next_batch = True
-
-        if len(batch) >= 5:
-            if save_current_batch:
-                # save batch
-                print('saving batch...')
-                save_current_batch = save_next_batch
-                save_next_batch = False
-            batch = []
-
+            if len(batch) >= 5:
+                if save_current_batch:
+                    # Save batch
+                    filename = datetime.now().strftime("sleep_talking_%Y-%m-%d_%H-%M-%S.mp3")
+                    print(f'Saving batch as {filename}...')
+                    audio_data = np.concatenate(batch, axis=0)
+                    sf.write("output/" + filename, audio_data, fs, format='MP3')
+                    save_current_batch = save_next_batch
+                    save_next_batch = False
+                batch = []
+    except KeyboardInterrupt:
+        print("Stopping the stream...")
+        stream.stop()
 
 if __name__ == "__main__":
     main()
