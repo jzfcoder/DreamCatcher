@@ -10,12 +10,15 @@ def cleanup():
 
 atexit.register(cleanup)
 
-def analyze(reading):
-    avg_amplitude = np.average(reading[0]) * 100_000
-    threshold = 0.5
+def analyze(reading, hz):
+    audio = reading[0].flatten()
 
-    print(avg_amplitude, threshold, abs(avg_amplitude) > threshold)
-    return abs(avg_amplitude) > threshold
+    # Perform FFT
+    n = len(audio)
+    freqs = np.fft.rfftfreq(n, d=1/hz)
+    fft_values = np.abs(np.fft.rfft(audio))
+
+    return np.average(fft_values[90:156]) > 1
 
 def main():
     fs = 48000  # Readings per second
@@ -32,7 +35,7 @@ def main():
             reading = stream.read(fs)  # Read 1 second (48000 data points)
             batch.append(reading[0])
 
-            if analyze(reading):  # If current reading is flagged, save this and next 5 sec
+            if analyze(reading, fs):  # If current reading is flagged, save this and next 5 sec
                 save_current_batch = True
                 # save_next_batch = True
 
