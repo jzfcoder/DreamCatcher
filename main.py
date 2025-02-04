@@ -18,7 +18,7 @@ def analyze(reading, hz):
     freqs = np.fft.rfftfreq(n, d=1/hz)
     fft_values = np.abs(np.fft.rfft(audio))
 
-    return np.average(fft_values[90:156]) > 1
+    return np.average(fft_values[85:185]) > 1
 
 def main():
     fs = 48000  # Readings per second
